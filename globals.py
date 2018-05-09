@@ -1,0 +1,12 @@
+# Do not change the next 2 values
+COOPERATE = 0
+DEFECT = 1
+
+DEFECT_DEFECT = (-2, -2)
+COOPERATE_DEFECT = (-3, 0)
+DEFECT_COOPERATE = (0, -3)
+COOPERATE_COOPERATE = (-1, -1)
+
+MEMORY_SIZE = 10
+
+S = -5.0

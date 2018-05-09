@@ -1,70 +1,121 @@
-COOPERATE = 0
-DEFECT = 1
-
-IN_P = 1
-IN_Q = 1
-IN_I = 1
-OUT_P = 1
-OUT_Q = 1
-OUT_I = 1
-IND_P = 1
-IND_Q = 1
-IND_I = 1
+import random
+from globals import DEFECT, COOPERATE, MEMORY_SIZE
 
 
 class Agent:
     __i = 0
 
-    def __init__(self, features):
+    def __init__(self, graph, group):
         self.i = Agent.__i
         Agent.__i += 1
 
-        self.memory = {}
-        self.features = features
+        self.played = set()
+        self.group = group
+        self.payoff = 0
+        self.G = graph
+
+    def calc_move(self, prob):
+        p = random.random()
+        if p < prob:
+            return DEFECT
+        else:
+            return COOPERATE
 
 
 class GroupAgent(Agent):
-    def __init__(self, features=None):
-        Agent.__init__(self, features)
+    def __init__(self, graph, group):
+        Agent.__init__(self, graph, group)
+        self.memory = {}
+        self.temp_memory = {}
+
+    def reset(self):
+        self.temp_memory = {}
+        self.played = set()
+        self.payoff = 0
+
+    def add_to_memory(self, other, move):
+        if other.group in self.temp_memory:
+            self.temp_memory[other.group].append(move)
+        else:
+            self.temp_memory[other.group] = [move]
+
+    def commit_memory(self):
+        for group, moves in self.temp_memory.items():
+            if group in self.memory:
+                self.memory[group].extend(moves)
+                if len(self.memory[group]) > MEMORY_SIZE:
+                    self.memory[group] = self.memory[group][(len(self.memory[group]) - MEMORY_SIZE):]
+            else:
+                self.memory[group] = moves
+
+    # returns the weighted average of memory as a chance of defection
+    def defect_probability(self, other):
+        if other.group in self.memory:
+            memory_length = len(self.memory[other.group])
+            defects = 0
+            total = 0
+            for i in range(memory_length):
+                weight = MEMORY_SIZE - i
+                defects += weight * self.memory[other.group][i]
+                total += weight
+            defect_prob = defects / float(total)
+            bias = 0.5 * (MEMORY_SIZE - memory_length)
+            return ((defect_prob * memory_length) + bias) / float(MEMORY_SIZE)
+        else:
+            # if never played before, equal chance of defect
+            return 0.5
 
     def move(self, p2):
-        p1_tag = self.features['group']
-        p2_tag = p2.features['group']
+        p1_group = self.group
 
-        # check if p2 defected against any neighbor that are in my group
+        # check if p2 defected against any me or neighbor that are in my group
         group_neighbors = [n for n in self.G.neighbors(self)
-                           if n.features['group'] == p1_tag]
-        for n in group_neighbors:
-            if p2_tag in n.memory.keys() and \
-               n.memory[p2_tag] == DEFECT:
-                if p1_tag == p2_tag:
-                    return IN_Q
-                else:
-                    return OUT_Q
+                           if n.group == p1_group]
+        group_neighbors.append(self)
 
-        # check if self encountered p2's group before
-        if p2_tag in self.memory.keys():
-            if self.memory[p2_tag] == COOPERATE:
-                if p1_tag == p2_tag:
-                    return IN_P
-                else:
-                    return OUT_P
-            else:
-                if p1_tag == p2_tag:
-                    return IN_Q
-                else:
-                    return OUT_Q
+        # risk averse agent, use min for risk-taking agent
+        defect_prob = max(map(lambda n: n.defect_probability(p2),
+                          group_neighbors))
+        return self.calc_move(defect_prob)
 
 
 class IndividualAgent(Agent):
-    def __init__(self, features=None):
-        Agent.__init__(self, features)
+    def __init__(self, graph, group):
+        Agent.__init__(self, graph, group)
+        self.memory = []
+        self.temp_memory = []
+
+    def reset(self):
+        self.temp_memory = []
+        self.played = set()
+        self.payoff = 0
+
+    def add_to_memory(self, other, move):
+        self.temp_memory.append(move)
+
+    def commit_memory(self):
+        self.memory.extend(self.temp_memory)
+        if len(self.memory) > MEMORY_SIZE:
+            self.memory = self.memory[(len(self.memory) - MEMORY_SIZE):]
+
+    # returns the weighted average of memory as a chance of defection
+    def defect_probability(self, other):
+        if len(self.memory) == 0:
+            return 0.5
+
+        defects = 0
+        total = 0
+        for i in range(len(self.memory)):
+            weight = i + 1
+            defects += weight * self.memory[i]
+            total += weight
+        for i in range(len(self.memory), MEMORY_SIZE):
+            weight = i + 1
+            defects += weight * 0.5
+            total += weight
+        defect_prob = defects / float(total)
+        return defect_prob
 
     def move(self, p2):
-        if p2 in self.memory.keys():
-            if self.memory[p2] == COOPERATE:
-                return IND_P
-            else:
-                return IND_Q
-        else:
-            return IND_I
+        defect_prob = self.defect_probability(p2)
+        return self.calc_move(defect_prob)
