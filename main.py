@@ -1,41 +1,27 @@
-# TODO: incorporate payoff in reproduction or edge formation
+# TODO: There is no additional penalty for other groups
 from node_generator import RandomNodeGenerator
 from connection_generator import RandomGraphGenerator
 from games import TwoPlayer
 from agents import GroupAgent, IndividualAgent
+import community
+import networkx as nx
 
-NUM_GROUPS = 3
+NUM_GROUPS = 10
 ITERATIONS = 10000
 
 if __name__ == "__main__":
     nodegen = RandomNodeGenerator([GroupAgent, IndividualAgent],
                                   NUM_GROUPS)
     conngen = RandomGraphGenerator(0.05)
-    n = TwoPlayer(100, nodegen, conngen)
-    # n.show()
-
-    group = 0
-    ind = 0
-
-    for node in n.G.nodes:
-        if node.__class__.__name__ == 'GroupAgent':
-            group += 1
-        else:
-            ind += 1
-    print(group, ind)
+    sim = TwoPlayer(100, nodegen, conngen)
+    sim.show()
 
     for _ in range(ITERATIONS):
-        n.play_game()
-        n.reproduce()
-        # n.evolve_connections()
+        sim.play_game()
+        sim.reproduce()
+        sim.evolve_connections()
 
-    group = 0
-    ind = 0
+        # print(len(max(nx.connected_components(sim.G), key=len)))
+        # print(sorted([d for n, d in sim.G.degree()], reverse=True)[0:5])
 
-    for node in n.G.nodes:
-        if node.__class__.__name__ == 'GroupAgent':
-            group += 1
-        else:
-            ind += 1
-    print(group, ind)
-    print("============")
+    sim.show()

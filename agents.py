@@ -44,7 +44,8 @@ class GroupAgent(Agent):
             if group in self.memory:
                 self.memory[group].extend(moves)
                 if len(self.memory[group]) > MEMORY_SIZE:
-                    self.memory[group] = self.memory[group][(len(self.memory[group]) - MEMORY_SIZE):]
+                    self.memory[group] = self.memory[group][(len(
+                        self.memory[group]) - MEMORY_SIZE):]
             else:
                 self.memory[group] = moves
 
@@ -58,9 +59,12 @@ class GroupAgent(Agent):
                 weight = MEMORY_SIZE - i
                 defects += weight * self.memory[other.group][i]
                 total += weight
+            for i in range(len(self.memory[other.group]), MEMORY_SIZE):
+                weight = i + 1
+                defects += weight * 0.5
+                total += weight
             defect_prob = defects / float(total)
-            bias = 0.5 * (MEMORY_SIZE - memory_length)
-            return ((defect_prob * memory_length) + bias) / float(MEMORY_SIZE)
+            return defect_prob
         else:
             # if never played before, equal chance of defect
             return 0.5
