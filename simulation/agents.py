@@ -1,5 +1,5 @@
 import random
-from globals import DEFECT, COOPERATE, MEMORY_SIZE
+from globals import DEFECT, COOPERATE, MEMORY_SIZE, TRACK_INDIVIDUAL, RISK_AVERSE
 
 
 class Agent:
@@ -13,6 +13,9 @@ class Agent:
         self.group = group
         self.payoff = 0
         self.G = graph
+
+    def reset():
+        Agent.__i = 0
 
     def calc_move(self, prob):
         p = random.random()
@@ -56,7 +59,7 @@ class GroupAgent(Agent):
             defects = 0
             total = 0
             for i in range(memory_length):
-                weight = MEMORY_SIZE - i
+                weight = i + 1
                 defects += weight * self.memory[other.group][i]
                 total += weight
             for i in range(len(self.memory[other.group]), MEMORY_SIZE):
@@ -77,8 +80,12 @@ class GroupAgent(Agent):
                            if n.group == p1_group]
         group_neighbors.append(self)
 
-        # risk averse agent, use min for risk-taking agent
-        defect_prob = max(map(lambda n: n.defect_probability(p2),
+        if RISK_AVERSE:
+            risk = max
+        else:
+            risk = min
+
+        defect_prob = risk(map(lambda n: n.defect_probability(p2),
                           group_neighbors))
         return self.calc_move(defect_prob)
 
@@ -86,34 +93,65 @@ class GroupAgent(Agent):
 class IndividualAgent(Agent):
     def __init__(self, graph, group):
         Agent.__init__(self, graph, group)
-        self.memory = []
-        self.temp_memory = []
+        if TRACK_INDIVIDUAL:
+            self.memory = {}
+            self.temp_memory = {}
+        else:
+            self.memory = []
+            self.temp_memory = []
 
     def reset(self):
-        self.temp_memory = []
+        if TRACK_INDIVIDUAL:
+            self.temp_memory = {}
+        else:
+            self.temp_memory = []
         self.played = set()
         self.payoff = 0
 
     def add_to_memory(self, other, move):
-        self.temp_memory.append(move)
+        if TRACK_INDIVIDUAL:
+            if other.i in self.temp_memory:
+                self.temp_memory[other.i].append(move)
+            else:
+                self.temp_memory[other.i] = [move]
+        else:
+            self.temp_memory.append(move)
 
     def commit_memory(self):
-        self.memory.extend(self.temp_memory)
-        if len(self.memory) > MEMORY_SIZE:
-            self.memory = self.memory[(len(self.memory) - MEMORY_SIZE):]
+        if TRACK_INDIVIDUAL:
+            for i, moves in self.temp_memory.items():
+                if i in self.memory:
+                    self.memory[i].extend(moves)
+                    if len(self.memory[i]) > MEMORY_SIZE:
+                        self.memory[i] = self.memory[i][(len(
+                            self.memory[i]) - MEMORY_SIZE):]
+                else:
+                    self.memory[i] = moves
+        else:
+            self.memory.extend(self.temp_memory)
+            if len(self.memory) > MEMORY_SIZE:
+                self.memory = self.memory[(len(self.memory) - MEMORY_SIZE):]
 
     # returns the weighted average of memory as a chance of defection
     def defect_probability(self, other):
-        if len(self.memory) == 0:
+        if TRACK_INDIVIDUAL:
+            if other.i in self.memory:
+                memory = self.memory[other.i]
+            else:
+                memory = []
+        else:
+            memory = self.memory
+
+        if len(memory) == 0:
             return 0.5
 
         defects = 0
         total = 0
-        for i in range(len(self.memory)):
+        for i in range(len(memory)):
             weight = i + 1
-            defects += weight * self.memory[i]
+            defects += weight * memory[i]
             total += weight
-        for i in range(len(self.memory), MEMORY_SIZE):
+        for i in range(len(memory), MEMORY_SIZE):
             weight = i + 1
             defects += weight * 0.5
             total += weight

@@ -2,7 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from math import exp
 import random
-from agents import GroupAgent, IndividualAgent
+from simulation.agents import GroupAgent, IndividualAgent
 from globals import DEFECT, COOPERATE, DEFECT_DEFECT, COOPERATE_DEFECT, \
                     DEFECT_COOPERATE, COOPERATE_COOPERATE, S, RECONNECT_PROB
 
@@ -28,6 +28,7 @@ class TwoPlayer:
         nx.draw_networkx_nodes(self.G, pos, nodelist=red, node_color='r')
         nx.draw_networkx_nodes(self.G, pos, nodelist=blue, node_color='b')
         nx.draw_networkx_edges(self.G, pos)
+        plt.axis('off')
         plt.show()
 
     def reproduce(self):
@@ -40,6 +41,7 @@ class TwoPlayer:
 
         for node in orig_nodes:
             neighbors = list(self.G.neighbors(node))
+            # get neighbors who have higher payoff than me
             neighbors = list(filter(lambda n: n.payoff > node.payoff,
                                     neighbors))
             if len(neighbors) == 0:
@@ -49,13 +51,15 @@ class TwoPlayer:
             node_payoff = (node.payoff - min_payoff) / range_payoff
             diff = node_payoff - teacher_payoff
 
-            if random.random() < 1 / (1.0 + exp(S * diff)):
+            if random.random() < 1 / (1.0 + exp(-S * diff)):
                 # replacing the node takes all this work
                 new_node = teacher.__class__(self.G, node.group)
-                new_node.i = teacher.i
-                # replicate the memory
-                new_node.memory = teacher.memory
+                new_node.i = node.i
+                # replicate the memory if we don't change the class during reproduction
+                if node.__class__ == new_node.__class__:
+                    new_node.memory = node.memory
                 self.G.add_node(new_node)
+                neighbors = list(self.G.neighbors(node))
                 for n in neighbors:
                     self.G.add_edge(new_node, n)
                 self.G.remove_node(node)
@@ -63,17 +67,18 @@ class TwoPlayer:
     def evolve_connections(self):
         for node in self.G:
             if random.random() < RECONNECT_PROB:
+                # get a list neighbors who have lower payoff than me
                 neighbors = list(filter(lambda n: n.payoff < node.payoff,
                                         self.G.neighbors(node)))
                 if len(neighbors) != 0:
                     eliminate = random.choice(neighbors)
                     self.G.remove_edge(node, eliminate)
 
-                non_neighbors = list(filter(lambda n: n not in ([node] +
-                                            list(self.G.neighbors(node))), self.G.nodes))
-                if len(non_neighbors) != 0:
-                    friend = random.choice(non_neighbors)
-                    self.G.add_edge(node, friend)
+                    non_neighbors = list(filter(lambda n: n not in ([node] +
+                                                list(self.G.neighbors(node))), self.G.nodes))
+                    if len(non_neighbors) != 0:
+                        friend = random.choice(non_neighbors)
+                        self.G.add_edge(node, friend)
 
     def play_game(self):
         # reset all state variables for this round
