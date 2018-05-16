@@ -1,13 +1,16 @@
-from tests import strategy, agent_type
+from tests import strategy, agent_type, clustering, degree, avg_clustering
 import csv
 import os
 import numpy
 
-RUNS = 100
+RUNS = 10
 
 TESTS = [
-    # strategy
-    agent_type
+    # strategy,
+    # agent_type,
+    # clustering
+    avg_clustering
+    # degree
 ]
 for test in TESTS:
     for i in range(RUNS):

@@ -2,11 +2,13 @@ from simulation.node_generator import RandomNodeGenerator
 from simulation.connection_generator import RandomGraphGenerator
 from simulation.games import TwoPlayer
 from simulation.agents import Agent, GroupAgent, IndividualAgent
+import networkx as nx
+import numpy as np
 
-name = "agent_type"
+name = "clustering"
 
 NUM_GROUPS = 3
-ITERATIONS = 1000
+ITERATIONS = 5000
 
 def test(csvwriter):
     Agent.reset()
@@ -15,17 +17,12 @@ def test(csvwriter):
     conngen = RandomGraphGenerator(0.05)
     sim = TwoPlayer(100, nodegen, conngen)
 
-    for _ in range(ITERATIONS):
+    cl = [sorted(nx.clustering(sim.G).values())]
+
+    for i in range(ITERATIONS):
         actions = sim.play_game()
         sim.reproduce()
         sim.evolve_connections()
-        group_count = 0
-        ind_count = 0
-        for n in sim.G:
-            if n.__class__ == GroupAgent:
-                group_count += 1
-            elif n.__class__ == IndividualAgent:
-                ind_count += 1
-            else:
-                raise "Error!"
-        csvwriter.writerow([group_count, ind_count])
+
+    cl.append(sorted(nx.clustering(sim.G).values()))
+    csvwriter.writerows(np.transpose(cl))

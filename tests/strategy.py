@@ -5,8 +5,8 @@ from simulation.agents import Agent, GroupAgent, IndividualAgent
 
 name = "strategy_risk_taking"
 
-NUM_GROUPS = 10
-ITERATIONS = 10000
+NUM_GROUPS = 3
+ITERATIONS = 1000
 
 def test(csvwriter):
     Agent.reset()
